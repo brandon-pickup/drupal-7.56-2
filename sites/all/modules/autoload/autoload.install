@@ -1,0 +1,17 @@
+<?php
+
+/**
+ * @file
+ * Installation and updating tasks.
+ */
+
+/**
+ * Implements hook_modules_enabled().
+ */
+function autoload_modules_enabled() {
+  if (!function_exists('autoload_paths_recompute')) {
+    drupal_load('module', 'autoload');
+  }
+
+  autoload_paths_recompute();
+}
