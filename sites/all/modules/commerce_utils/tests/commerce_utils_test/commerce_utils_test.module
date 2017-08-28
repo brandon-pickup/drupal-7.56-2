@@ -1,0 +1,33 @@
+<?php
+
+/**
+ * @file
+ * Commerce Utilities (Test).
+ */
+
+define('COMMERCE_UTILS_TEST_PAYMENT_METHOD_WITH_PLUGIN', 'payment_with_plugin');
+define('COMMERCE_UTILS_TEST_PAYMENT_METHOD_WITH_PLUGIN_INSTANCE', sprintf('%s|commerce_payment_%1$s', COMMERCE_UTILS_TEST_PAYMENT_METHOD_WITH_PLUGIN));
+define('COMMERCE_UTILS_TEST_PAYMENT_METHOD_WITH_PLUGIN_WITHOUT_CAPTURE', 'payment_with_plugin_without_capture');
+define('COMMERCE_UTILS_TEST_PAYMENT_METHOD_WITH_PLUGIN_WITHOUT_CAPTURE_INSTANCE', sprintf('%s|commerce_payment_%1$s', COMMERCE_UTILS_TEST_PAYMENT_METHOD_WITH_PLUGIN_WITHOUT_CAPTURE));
+define('COMMERCE_UTILS_TEST_PAYMENT_METHOD_WITHOUT_PLUGIN', 'payment_without_plugin');
+define('COMMERCE_UTILS_TEST_PAYMENT_METHOD_WITHOUT_PLUGIN_INSTANCE', sprintf('%s|commerce_payment_%1$s', COMMERCE_UTILS_TEST_PAYMENT_METHOD_WITHOUT_PLUGIN));
+
+/**
+ * Implements hook_menu().
+ */
+function commerce_utils_test_menu() {
+  $items = [];
+
+  $items['commerce/utils/test-gateway'] = [
+    'file' => 'includes/commerce_utils_test.test_gateway.pages.inc',
+    'title' => 'Payment Gateway Simulator',
+    /* @see commerce_utils_test_test_gateway_page() */
+    // The arguments are:
+    // - an ID of payment method instance.
+    'page callback' => 'commerce_utils_test_test_gateway_page',
+    'page arguments' => [3],
+    'access callback' => TRUE,
+  ];
+
+  return $items;
+}

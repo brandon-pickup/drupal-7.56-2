@@ -1,0 +1,288 @@
+<?php
+
+/**
+ * @file
+ * Commerce Payment Watcher.
+ */
+
+use Drupal\commerce_payment_watcher\Entity\PaymentWatcherEntity;
+use Drupal\commerce_payment_watcher\Entity\PaymentWatcherEntityController;
+
+define('COMMERCE_PAYMENT_WATCHER_ENTITY_TYPE', 'commerce_payment_transaction_watcher');
+define('COMMERCE_PAYMENT_WATCHER_ADMIN_PATH', 'admin/commerce/config/payment-methods/payment-watchers');
+define('COMMERCE_PAYMENT_WATCHER_UI_MODULE', 'commerce_payment_watcher_ui');
+
+/**
+ * Implements hook_entity_info().
+ *
+ * @internal
+ */
+function commerce_payment_watcher_entity_info() {
+  $info = [];
+
+  $info[COMMERCE_PAYMENT_WATCHER_ENTITY_TYPE] = [
+    'label' => t('Payment transaction watcher'),
+    'fieldable' => FALSE,
+    /* @see commerce_payment_watcher_schema() */
+    'base table' => 'commerce_payment_transaction_pending_authorisations',
+    // To use "uri()" method within entity object.
+    /* @see entity_class_uri() */
+    'uri callback' => 'entity_class_uri',
+    // To use "label()" method within entity object.
+    /* @see entity_class_label() */
+    'label callback' => 'entity_class_label',
+    /* @see commerce_payment_watcher_access() */
+    'access callback' => 'commerce_payment_watcher_access',
+    // Needed for describing entity properties.
+    /* @see commerce_payment_watcher_entity_property_info_alter() */
+    'controller class' => PaymentWatcherEntityController::class,
+    'entity keys' => [
+      'id' => 'id',
+      'bundle' => 'payment_method_id',
+    ],
+    'bundle keys' => [
+      'bundle' => 'payment_method_id',
+    ],
+  ];
+
+  foreach (commerce_payment_watcher_payment_methods() as $payment_method_id => $payment_method) {
+    $info[COMMERCE_PAYMENT_WATCHER_ENTITY_TYPE]['bundles'][$payment_method_id] = [
+      'label' => $payment_method['title'],
+      'entity class' => $payment_method['payment_watcher_class'],
+      'admin' => [
+        'path' => COMMERCE_PAYMENT_WATCHER_ADMIN_PATH . '/%payment_method_id',
+        'real path' => COMMERCE_PAYMENT_WATCHER_ADMIN_PATH . '/' . str_replace('_', '-', $payment_method_id),
+        'bundle argument' => 5,
+        'access arguments' => ["administer {$payment_method_id} payment watchers"],
+      ],
+    ];
+  }
+
+  return $info;
+}
+
+/**
+ * Implements hook_permission().
+ *
+ * @internal
+ */
+function commerce_payment_watcher_permission() {
+  $permissions = [];
+
+  foreach (commerce_payment_watcher_payment_methods() as $payment_method_id => $payment_method) {
+    $permissions["administer {$payment_method_id} payment watchers"] = [
+      'title' => t('Administer pending authorisations of "@payment_method" payments', [
+        '@payment_method' => $payment_method['title'],
+      ]),
+    ];
+  }
+
+  return $permissions;
+}
+
+/**
+ * Implements hook_cronapi().
+ *
+ * @internal
+ */
+function commerce_payment_watcher_cronapi() {
+  $items = [];
+
+  foreach (commerce_payment_watcher_payment_methods() as $payment_method_id => $payment_method) {
+    if (!empty(commerce_payment_method_instance_load($payment_method['instance_id'])['settings']['payment_watcher']['enabled'])) {
+      $items[commerce_payment_watcher_item_name($payment_method_id)] = [
+        // Every 5 minutes.
+        'rule' => '*/5 * * * *',
+        'file' => 'commerce_payment_watcher.cron.inc',
+        /* @see commerce_payment_watcher_check_payment_statuses() */
+        'callback' => 'commerce_payment_watcher_check_payment_statuses',
+        'arguments' => [$payment_method_id, $payment_method['instance_id']],
+        'description' => t('Check statuses of uncompleted payments.'),
+      ];
+    }
+  }
+
+  return $items;
+}
+
+/**
+ * Implements hook_commerce_order_delete().
+ *
+ * @internal
+ */
+function commerce_payment_watcher_commerce_order_delete(\stdClass $order) {
+  // Remove all watchers alongside with an order.
+  /* @var \Drupal\commerce_payment_watcher\Entity\PaymentWatcherEntity $entity*/
+  foreach (entity_load(COMMERCE_PAYMENT_WATCHER_ENTITY_TYPE, FALSE, ['order_id' => $order->order_id]) as $entity) {
+    $entity->delete();
+  }
+}
+
+/**
+ * Checks operation accessibility for payment watcher entity.
+ *
+ * @param string $operation
+ *   Operation to perform.
+ * @param \Drupal\commerce_payment_watcher\Entity\PaymentWatcherEntity $watcher
+ *   Entity object.
+ * @param \stdClass $account
+ *   A user, trying to perform the operation.
+ * @param string $entity_type
+ *   Type of entity.
+ *
+ * @return bool
+ *   A state of check.
+ *
+ * @see commerce_payment_watcher_entity_info()
+ * @see commerce_payment_watcher_permission()
+ *
+ * @internal
+ */
+function commerce_payment_watcher_access($operation, PaymentWatcherEntity $watcher = NULL, \stdClass $account = NULL, $entity_type) {
+  if (in_array($operation, ['create', 'update'])) {
+    // Only programmatic updates/creations.
+    return FALSE;
+  }
+
+  return user_access("administer {$watcher->payment_method_id} payment watchers", $account);
+}
+
+/**
+ * {@inheritdoc}
+ *
+ * @see commerce_utils_form_rules_ui_edit_element_alter()
+ */
+function commerce_payment_watcher_settings_form(array &$form, array &$settings, $payment_method_id) {
+  $checks_gap_factors = [];
+  $user_interface = [
+    'enabled' => module_exists(COMMERCE_PAYMENT_WATCHER_UI_MODULE),
+  ];
+
+  if ($user_interface['enabled']) {
+    $user_interface += commerce_payment_watcher_ui_get_page_info($payment_method_id);
+  }
+  else {
+    $data = db_select('system', 's')
+      ->fields('s', ['info'])
+      ->condition('name', COMMERCE_PAYMENT_WATCHER_UI_MODULE)
+      ->execute()
+      ->fetchField();
+
+    $user_interface += [
+      'title' => unserialize($data)['name'],
+      'path' => 'admin/modules',
+    ];
+  }
+
+  $settings += ['payment_watcher' => []];
+
+  $settings['payment_watcher'] += [
+    'enabled' => FALSE,
+    'checks_gap_factor' => 5,
+    'days_before_release' => 30,
+  ];
+
+  /* @see commerce_payment_watcher_cronapi() */
+  for ($multiplier = 1; $multiplier < 10; $multiplier++) {
+    $checks_gap_factors[] = commerce_payment_watcher_calculate_next_status_check_gap($settings, $multiplier);
+  }
+
+  $form['payment_watcher'] = [
+    '#type' => 'fieldset',
+    '#title' => t('Payment watchers'),
+  ];
+
+  if ($user_interface['enabled']) {
+    $form['payment_watcher']['#description'] = t('List of payment watchers can be found at <a href="@url" target="_blank">@label</a> page.', [
+      '@url' => url($user_interface['path']),
+      '@label' => $user_interface['title'],
+    ]);
+  }
+  else {
+    $form['payment_watcher']['#description'] = t('You have to enable the <a href="@url" target="_blank">@label</a> to see the list of watchers in UI, have an ability to delete them or do an unplanned status checks.', [
+      '@url' => url($user_interface['path']),
+      '@label' => $user_interface['title'],
+    ]);
+  }
+
+  $form['payment_watcher']['enabled'] = [
+    '#type' => 'checkbox',
+    '#title' => t('Enable'),
+    '#description' => t('Enable payment processing via cron.'),
+  ];
+
+  foreach ([
+    'days_before_release' => [
+      '#title' => t('Days before release'),
+      '#description' => t("Our system will ping API gateway to gain payment statuses. This is done to synchronize transactions a gateway and our website (for instance, when payment page on gateway was closed and a customer hasn’t been redirected back to the site). In a case of unsuccessful attempt to handle payment status, information about it will be stored in our database for further retries until the days you’ll configure here will not pass."),
+    ],
+    'checks_gap_factor' => [
+      '#ajax' => TRUE,
+      '#title' => t('Gap factor between checks'),
+      '#description' => t('Every attempt of payment status gathering will be counted. Choose a factor to multiply attempts counter for to reduce API requests. Example: <b>[FACTOR] * [ATTEMPTS_COUNT] * [ATTEMPTS_COUNT]</b>. Current configuration will allow status check every <b>@times</b> and so on minutes. Every single check postpones next one for a while until release day comes.', [
+        '@times' => implode(', ', $checks_gap_factors),
+      ]),
+    ],
+  ] as $option => $specification) {
+    $form['payment_watcher'][$option] = $specification + [
+      '#type' => 'textfield',
+      '#required' => TRUE,
+      '#element_validate' => ['element_validate_integer_positive'],
+      '#states' => [
+        'disabled' => [
+          ':input[name*=enabled]' => ['checked' => FALSE],
+        ],
+      ],
+    ];
+  }
+}
+
+/**
+ * Yields payment methods which require watchers.
+ */
+function commerce_payment_watcher_payment_methods() {
+  foreach (commerce_payment_methods() as $payment_method_id => $payment_method) {
+    if (isset($payment_method['payment_plugin'])) {
+      $payment_watcher_class = commerce_utils_get_payment_plugin($payment_method)->getPaymentWatcherEntityClass();
+
+      if (NULL !== $payment_watcher_class) {
+        $payment_method['instance_id'] = sprintf('%s|commerce_payment_%1$s', $payment_method_id);
+        $payment_method['payment_watcher_class'] = $payment_watcher_class;
+
+        yield $payment_method_id => $payment_method;
+      }
+    }
+  }
+}
+
+/**
+ * Compute gap before next payment status check attempt.
+ *
+ * @param array $payment_method_settings
+ *   Settings of a payment method.
+ * @param int $multiplier
+ *   Multiplier factor.
+ *
+ * @return int
+ *   Number of minutes.
+ */
+function commerce_payment_watcher_calculate_next_status_check_gap(array $payment_method_settings, $multiplier) {
+  if (empty($multiplier)) {
+    $multiplier = 1;
+  }
+
+  return $payment_method_settings['payment_watcher']['checks_gap_factor'] * $multiplier * $multiplier;
+}
+
+/**
+ * Returns prefixed ID of payment method.
+ *
+ * @param string $payment_method_id
+ *   An ID of payment method.
+ *
+ * @return string
+ *   Prefixed ID of payment method.
+ */
+function commerce_payment_watcher_item_name($payment_method_id) {
+  return 'commerce_payment_watcher__' . $payment_method_id;
+}

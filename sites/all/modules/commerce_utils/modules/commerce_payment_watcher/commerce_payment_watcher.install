@@ -1,0 +1,58 @@
+<?php
+
+/**
+ * @file
+ * Module installation and updates.
+ */
+
+/**
+ * Implements hook_schema().
+ */
+function commerce_payment_watcher_schema() {
+  module_load_include('install', 'commerce_payment');
+
+  $commerce_payment_schema = commerce_payment_schema();
+  $schema = [];
+
+  $schema['commerce_payment_transaction_pending_authorisations'] = [
+    'description' => 'Store payments waiting for authorisation.',
+    'fields' => [
+      'id' => array_merge($commerce_payment_schema['commerce_payment_transaction']['fields']['transaction_id'], [
+        'description' => 'Entry ID.',
+      ]),
+      'order_id' => array_merge($commerce_payment_schema['commerce_payment_transaction']['fields']['order_id'], [
+        'description' => 'The {commerce_order}.order_id of the order this watcher is for.',
+      ]),
+      'created' => array_merge($commerce_payment_schema['commerce_payment_transaction']['fields']['created'], [
+        'description' => 'UNIX timestamp of entry creation.',
+      ]),
+      'changed' => array_merge($commerce_payment_schema['commerce_payment_transaction']['fields']['changed'], [
+        'description' => 'UNIX timestamp of last entry modification.',
+      ]),
+      'remote_id' => array_merge($commerce_payment_schema['commerce_payment_transaction']['fields']['remote_id'], [
+        'default' => '',
+      ]),
+      'payment_method_id' => [
+        'type' => 'varchar',
+        'length' => 32,
+        'default' => '',
+        'not null' => TRUE,
+        'description' => 'An ID of payment method, registered by the "hook_commerce_payment_method_info()".',
+      ],
+      'authorisation_checks' => [
+        'type' => 'int',
+        'size' => 'tiny',
+        'default' => 0,
+        'not null' => TRUE,
+        'description' => 'Number of checks payment authorisation on gateway.',
+      ],
+    ],
+    'indexes' => [
+      'order_id' => ['order_id'],
+      'created' => ['created'],
+    ],
+    'primary key' => ['id'],
+  ];
+
+  return $schema;
+}

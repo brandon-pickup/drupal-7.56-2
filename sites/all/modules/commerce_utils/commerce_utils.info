@@ -1,0 +1,23 @@
+name = Commerce Utilities
+description = A set of utilities that simplify commerce routine.
+package = Commerce
+core = 7.x
+php = 5.6
+
+autoload[src][] = Commerce\Utils
+
+dependencies[] = autoload
+dependencies[] = commerce
+dependencies[] = commerce_order
+dependencies[] = commerce_payment
+
+test_dependencies[] = views
+test_dependencies[] = commerce_bangkokbank
+test_dependencies[] = commerce_paygate_payhost
+
+; Information added by Drupal.org packaging script on 2017-07-28
+version = "7.x-1.x-dev"
+core = "7.x"
+project = "commerce_utils"
+datestamp = "1501233845"
+

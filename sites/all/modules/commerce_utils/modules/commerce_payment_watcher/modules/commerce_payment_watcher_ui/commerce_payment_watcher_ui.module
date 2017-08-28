@@ -1,0 +1,117 @@
+<?php
+
+/**
+ * @file
+ * Commerce Payment Watcher UI.
+ */
+
+use Drupal\commerce_payment_watcher\Entity\PaymentWatcherEntity;
+use Drupal\commerce_payment_watcher_ui\Entity\PaymentWatcher\ViewsController;
+
+/**
+ * Implements hook_entity_info_alter().
+ */
+function commerce_payment_watcher_ui_entity_info_alter(array &$entity_info) {
+  $entity_info[COMMERCE_PAYMENT_WATCHER_ENTITY_TYPE]['views controller class'] = ViewsController::class;
+}
+
+/**
+ * Implements hook_action_info().
+ */
+function commerce_payment_watcher_ui_action_info() {
+  $items = [];
+
+  /* @see commerce_payment_watcher_ui_check_payment_status() */
+  $items['commerce_payment_watcher_ui_check_payment_status'] = [
+    'type' => COMMERCE_PAYMENT_WATCHER_ENTITY_TYPE,
+    'label' => t('Forcibly check payment status'),
+    'pass rows' => TRUE,
+    'triggers' => [],
+    // Needs to try access an entity using "view" operation.
+    /* @see \ViewsBulkOperationsAction::getAccessMask() */
+    'behavior' => ['views_property'],
+    'configurable' => FALSE,
+    'vbo_configurable' => FALSE,
+  ];
+
+  return $items;
+}
+
+/**
+ * Implements hook_views_api().
+ */
+function commerce_payment_watcher_ui_views_api() {
+  return ['api' => 3];
+}
+
+/**
+ * Implements hook_module_implements_alter().
+ */
+function commerce_payment_watcher_ui_module_implements_alter(array &$implementations, $hook) {
+  if ('menu_alter' === $hook) {
+    // We need our implementation to be executed at last to let "views" module
+    // populate information about menu route.
+    $group = $implementations['commerce_payment_watcher_ui'];
+    unset($implementations['commerce_payment_watcher_ui']);
+    $implementations['commerce_payment_watcher_ui'] = $group;
+  }
+}
+
+/**
+ * Implements hook_menu_alter().
+ */
+function commerce_payment_watcher_ui_menu_alter(array &$items) {
+  foreach (commerce_payment_watcher_payment_methods() as $payment_method_id => $payment_method) {
+    $info = commerce_payment_watcher_ui_get_page_info($payment_method_id);
+
+    if (!empty($items[$info['path']])) {
+      $items[$info['path']]['type'] = MENU_NORMAL_ITEM;
+      $items[$info['path']]['title'] = $info['title'];
+    }
+  }
+}
+
+/**
+ * Returns information about page with payment watchers.
+ *
+ * @param string $payment_method_id
+ *   An ID of payment method.
+ *
+ * @return string[]
+ *   An associative array with the following keys:
+ *   - title: title of the page;
+ *   - path: path to page.
+ */
+function commerce_payment_watcher_ui_get_page_info($payment_method_id) {
+  /* @see commerce_payment_watcher_ui_views_default_views() */
+  $view = views_get_view(commerce_payment_watcher_item_name($payment_method_id));
+
+  if (empty($view->display['page']->display_options['path'])) {
+    return [
+      'title' => '',
+      'path' => '',
+    ];
+  }
+
+  return [
+    'title' => $view->display['default']->display_options['title'],
+    'path' => $view->display['page']->display_options['path'],
+  ];
+}
+
+/**
+ * Actions callback: unconditionally check payment status.
+ *
+ * @param \Drupal\commerce_payment_watcher\Entity\PaymentWatcherEntity $watcher
+ *   Payment watcher.
+ *
+ * @see commerce_payment_watcher_ui_action_info()
+ */
+function commerce_payment_watcher_ui_check_payment_status(PaymentWatcherEntity $watcher) {
+  try {
+    $watcher->checkPaymentStatus();
+  }
+  catch (\Exception $e) {
+    drupal_set_message($e->getMessage(), 'error');
+  }
+}

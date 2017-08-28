@@ -1,0 +1,130 @@
+<?php
+
+/**
+ * @file
+ * Commerce Utilities.
+ */
+
+if (!defined('COMMERCE_PAYMENT_STATUS_AUTHORISED')) {
+  // @codingStandardsIgnoreStart
+  define('COMMERCE_PAYMENT_STATUS_AUTHORISED', 'authorised');
+  // @codingStandardsIgnoreEnd
+}
+
+require_once __DIR__ . '/includes/commerce_utils.common.inc';
+require_once __DIR__ . '/includes/commerce_utils.settings.inc';
+require_once __DIR__ . '/includes/commerce_utils.transaction.inc';
+
+/**
+ * Implements hook_menu().
+ *
+ * @internal
+ */
+function commerce_utils_menu() {
+  $items = [];
+
+  foreach (commerce_payment_methods() as $payment_method_id => $payment_method) {
+    if (isset($payment_method['payment_plugin'])) {
+      $controller = commerce_utils_get_payment_plugin($payment_method)
+        ->getNotificationsControllerClass();
+
+      if (NULL !== $controller) {
+        $items[$controller::NOTIFICATIONS_PATH] = [
+          'type' => MENU_CALLBACK,
+          'file' => 'includes/commerce_utils.notification.inc',
+          'page callback' => 'commerce_utils_notification',
+          'page arguments' => [$controller, $payment_method_id],
+          'access callback' => TRUE,
+        ];
+      }
+    }
+  }
+
+  return $items;
+}
+
+/**
+ * Implements hook_hook_info().
+ *
+ * @internal
+ */
+function commerce_utils_hook_info() {
+  $info = [];
+
+  foreach (commerce_payment_methods() as $payment_method => $payment_info) {
+    if (isset($payment_info['payment_plugin'])) {
+      $api_php = module_load_include('api.php', $payment_info['provider']);
+      $matches = [];
+
+      if (FALSE === $api_php) {
+        throw new \RuntimeException(t('File "@file" with API documentation is not readable! Work of @provider is not possible.', [
+          '@file' => $api_php,
+          '@provider' => $payment_info['title'],
+        ]));
+      }
+
+      // Read all function definitions from API documentation.
+      preg_match_all('/function\s+hook_(' . DRUPAL_PHP_FUNCTION_PATTERN . ')/i', file_get_contents($api_php), $matches);
+
+      if (!empty($matches[1])) {
+        $info += array_fill_keys($matches[1], [
+          'group' => 'commerce',
+        ]);
+      }
+    }
+  }
+
+  /* @see hook_commerce_payment_capture_rule_alter() */
+  $info['commerce_payment_capture_rule_alter'] = [
+    'group' => 'rules_defaults',
+  ];
+
+  /* @see hook_commerce_payment_capture_occurred() */
+  $info['commerce_payment_capture_occurred'] = [
+    'group' => 'commerce',
+  ];
+
+  return $info;
+}
+
+/**
+ * Implements hook_module_implements_alter().
+ *
+ * @see commerce_utils_commerce_payment_method_info_alter()
+ *
+ * @internal
+ */
+function commerce_utils_module_implements_alter(array &$implementations, $hook) {
+  $module = 'commerce_utils';
+
+  if (isset($implementations[$module]) && in_array($hook, [
+    // Needs to invoke our handler latest because other similar hooks may
+    // want to perform a capture request and create a successful finalized
+    // transaction.
+    'commerce_order_presave',
+    // Do an alteration of payment methods latest by our handler in order
+    // to be sure that all information is populated.
+    'commerce_payment_method_info_alter',
+  ])) {
+    $group = $implementations[$module];
+    unset($implementations[$module]);
+    $implementations[$module] = $group;
+  }
+}
+
+/**
+ * Allows capture triggering again.
+ *
+ * This function allows the "commerce_utils_order_completed" Rules event to
+ * be triggered again. Remember, that this event can be triggered only for an
+ * order whose status is changing to "completed".
+ *
+ * @param \stdClass $order
+ *   Commerce order.
+ *
+ * @see commerce_utils_commerce_order_presave()
+ */
+function commerce_utils_allow_capture_reinitialization(\stdClass $order) {
+  unset($order->data['commerce_utils_order_completed_invoked']);
+  commerce_order_save($order);
+}

@@ -1,0 +1,16 @@
+name = Commerce Payment Watcher
+description = Provides an entity for tracking payments.
+autoload = TRUE
+package = Commerce
+core = 7.x
+php = 5.6
+
+dependencies[] = commerce_utils
+dependencies[] = elysia_cron
+
+; Information added by Drupal.org packaging script on 2017-07-28
+version = "7.x-1.x-dev"
+core = "7.x"
+project = "commerce_utils"
+datestamp = "1501233845"
+
