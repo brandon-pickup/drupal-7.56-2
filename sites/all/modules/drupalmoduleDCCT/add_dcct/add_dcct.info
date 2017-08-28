@@ -1,0 +1,4 @@
+name = Add DCCT
+description = Add product to Store
+version = VERSION
+core = 7.x

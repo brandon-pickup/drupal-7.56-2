@@ -1,0 +1,4 @@
+name = Update DCCT
+description = Update product in Store
+version = VERSION
+core = 7.x

@@ -1,0 +1,88 @@
+<?php
+
+function update_dcct_menu() {
+  $items = array();
+
+  $items['examples/update_dcct'] = array( //this creates a URL that will call this form at "examples/update_dcct"
+    'title' => 'Update product', //page title
+    'description' => 'A form to mess around with.',
+    'page callback' => 'drupal_get_form', //this is the function that will be called when the page is accessed.  for a form, use drupal_get_form
+    'page arguments' => array('update_dcct_form'), //put the name of the form here
+    'access callback' => TRUE
+  );
+
+  return $items;
+}
+
+function  update_dcct_form($form, &$form_state) {
+
+  $external_link = t('DCCT Tutorial <a href="@dcctut">Video</a>.', array('@dcctut' => 'https://www.youtube.com'));
+
+$form['some_text'] = array(
+  '#markup' => $external_link
+);
+
+ $form['sku'] = array(
+    '#type' => 'textfield', //you can find a list of available types in the form api
+    '#title' => 'What is the SKU of the product to be updated?',
+    '#size' => 10,
+    '#maxlength' => 5,
+    '#required' => TRUE, //make this field required 
+  );
+
+ $form['title'] = array(
+    '#type' => 'textfield', //you can find a list of available types in the form api
+    '#title' => 'What is the new product title/name?',
+    '#size' => 20,
+    '#maxlength' => 20,
+    '#required' => TRUE, //make this field required 
+  );
+
+ $form['price'] = array(
+    '#type' => 'textfield', //you can find a list of available types in the form api
+    '#title' => 'What is the new Price?',
+    '#size' => 10,
+    '#maxlength' => 10,
+    '#required' => TRUE, //make this field required 
+  );
+
+$form['upload'] = array(
+    '#type' => 'file',
+    '#title' => t('Choose a file'),
+    '#description' => t('Upload a files: jpg, jpeg, png, gif'),
+    '#size' => 22,
+    '#theme_wrappers' => array(),
+    '#weight' => -10,
+  );
+
+  $form['submit_button'] = array(
+    '#type' => 'submit',
+    '#value' => t('SUBMIT'),
+  );
+  
+  return $form;
+}
+
+function  update_dcct_form_validate($form, &$form_state) {
+  if (!($form_state['values']['price'] > 0)){
+    form_set_error('price', t('Price must be a positive number.'));
+  }
+}
+
+function  update_dcct_form_submit($form, &$form_state) {
+ // Product
+      $product = commerce_product_load_by_sku($form_state['values']['sku']);
+      // $product->sku = $form_state['values']['sku'];
+      $product->title = $form_state['values']['title'];
+      $product->language = LANGUAGE_NONE;
+      $product->uid = 1;
+      $product->commerce_price[LANGUAGE_NONE][0] = array(
+        'amount' => (int)$form_state['values']['price'] * 100, // $10
+        'currency_code' => "ZAR",
+      );
+      commerce_product_save($product);
+      $product->field_product_category[LANGUAGE_NONE][0]['tid'] = 1; // 1 = the term id
+      $product->commerce_stock[LANGUAGE_NONE][0]['value'] = 1;
+       $product->commerce_price[LANGUAGE_NONE][0]['data']['include_tax'] = "vat"; // "vat" = machine name for the tax
+        $product->commerce_price[LANGUAGE_NONE][0]['include_tax'] = "vat"; // "vat" = machine name for the tax
+}

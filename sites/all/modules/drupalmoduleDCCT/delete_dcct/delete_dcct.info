@@ -1,0 +1,4 @@
+name = Delete DCCT
+description = Delete product from Store
+version = VERSION
+core = 7.x

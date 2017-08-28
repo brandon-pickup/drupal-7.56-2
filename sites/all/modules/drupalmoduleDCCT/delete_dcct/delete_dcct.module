@@ -1,0 +1,72 @@
+<?php
+
+function delete_dcct_menu() {
+  $items = array();
+
+  $items['examples/delete_dcct'] = array( //this creates a URL that will call this form at "examples/delete_dcct"
+    'title' => 'Delete product', //page title
+    'description' => 'A form to mess around with.',
+    'page callback' => 'drupal_get_form', //this is the function that will be called when the page is accessed.  for a form, use drupal_get_form
+    'page arguments' => array('delete_dcct_form'), //put the name of the form here
+    'access callback' => TRUE
+  );
+
+  return $items;
+}
+
+function  delete_dcct_form($form, &$form_state) {
+
+  $external_link = t('DCCT Tutorial <a href="@dcctut">Video</a>.', array('@dcctut' => 'https://www.youtube.com'));
+
+$form['some_text'] = array(
+  '#markup' => $external_link
+);
+
+ $form['sku'] = array(
+    '#type' => 'textfield', //you can find a list of available types in the form api
+    '#title' => 'What is the product SKU?',
+    '#size' => 10,
+    '#maxlength' => 5,
+    '#required' => TRUE, //make this field required
+  );
+
+ $form['title'] = array(
+    '#type' => 'textfield', //you can find a list of available types in the form api
+    '#title' => 'What is the product title/name?',
+    '#size' => 20,
+    '#maxlength' => 20,
+    '#required' => FALSE, //make this field required
+  );
+
+  $form['submit_button'] = array(
+    '#type' => 'submit',
+    '#value' => t('DELETE'),
+  );
+
+  return $form;
+}
+
+function  delete_dcct_form_validate($form, &$form_state) {
+
+}
+
+function  delete_dcct_form_submit($form, &$form_state) {
+ $product = commerce_product_load_by_sku($form_state['values']['sku']); //product to delete
+
+$products = commerce_product_load_multiple(array(), array('sku' => $form_state['values']['sku']));
+$deleteDisplay = 0;
+foreach ($products as $prod) {
+   if ($prod->title == $product->title){
+      $deleteDisplay = $deleteDisplay+1;
+}
+
+ // Product
+      $product_id = $product->product_id;
+  if (!(commerce_product_delete($product_id))){
+    form_set_error('id', t('There is no product with that SKU.'));
+  }
+
+if ($deleteDislpay = 1){
+      $node = node_load(array('title' => $form_state['values']['title'], 'type' => 'product_display'));
+      $node_delete($node->nid);}
+}}
