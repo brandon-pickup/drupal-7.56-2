@@ -3,6 +3,7 @@
 /**
  * @file
  * Installs the tables required by Commerce PayFast.
+ * Based on:  http://drupal.org/project/commerce_payfast
  */
 
 /**
@@ -85,6 +86,19 @@ function commerce_payfast_schema() {
         'length' => 255,
         'not null' => TRUE,
         'default' => '',
+      ),
+      'subscription_token' => array(
+        'description' => 'Unique token for subscription.',
+        'type' => 'varchar',
+        'length' => 36,
+        'not null' => FALSE,
+        'default' => '',
+      ),
+      'custom_int1' => array(
+        'description' => 'Equivalent to order ID, used for recurring',
+        'type' => 'int',
+        'not null' => FALSE,
+        'default' => NULL,
       ),
       'created' => array(
         'description' => 'The Unix timestamp when the ITN was received.',
