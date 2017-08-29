@@ -16,9 +16,9 @@ function commerce_payfast_menu()
     // Define the path to receive ITNs.
     $items['commerce_payfast/itn/%commerce_payment_method_instance'] = array(
      'page callback' => 'commerce_payfast_process_itn',
-     'page arguments' => array( 2 ),
-     'access callback' => true,
-     'type' => MENU_CALLBACK,
+     'page arguments' => array( 2 ), 
+     'access callback' => true, 
+     'type' => MENU_CALLBACK, 
      );
 
     return $items;
@@ -31,12 +31,12 @@ function commerce_payfast_commerce_payment_method_info()
 {
     $payment_methods = array();
 
-    $payment_methods['commerce_payfast'] = array(
+    $payment_methods['commerce_payfast'] = array( 
         'title' => t( 'PayFast' ),
         'description' => t( 'Integrates with the PayFast payment gateway.' ),
-        'active' => true,
-        'offsite' => true,
-        'offsite_autoredirect' => true,
+        'active' => true, 
+        'offsite' => true, 
+        'offsite_autoredirect' => true, 
     );
 
     return $payment_methods;
@@ -49,15 +49,15 @@ function commerce_payfast_settings_form( $settings = null )
 {
     $form = array();
 
-    $form['merchant_id'] = array(
-        '#type' => 'textfield',
-        '#title' => t( 'PayFast Merchant ID' ),
+    $form['merchant_id'] = array( 
+        '#type' => 'textfield', 
+        '#title' => t( 'PayFast Merchant ID' ), 
         '#description' => t( 'The Merchant ID as given by the PayFast system. Used to uniquely identify the receiving account.' ),
         '#default_value' => isset( $settings['merchant_id'] ) ? $settings['merchant_id'] : '10000103', '#required' => true, );
 
-    $form['merchant_key'] = array(
-        '#type' => 'textfield',
-        '#title' => t( 'PayFast Merchant Key' ),
+    $form['merchant_key'] = array( 
+        '#type' => 'textfield', 
+        '#title' => t( 'PayFast Merchant Key' ), 
         '#description' => t( 'The Merchant Key as given by the PayFast system.' ),
         '#default_value' => isset( $settings['merchant_key'] ) ? $settings['merchant_key'] : '479f49451e829', '#required' => true, );
 
@@ -68,8 +68,8 @@ function commerce_payfast_settings_form( $settings = null )
         '#default_value' => isset( $settings['passphrase'] ) ? $settings['passphrase'] : '', '#required' => false, );
 
 
-    $form['server'] = array(
-        '#type' => 'radios', '#title' => t( 'PayFast server' ),
+    $form['server'] = array( 
+        '#type' => 'radios', '#title' => t( 'PayFast server' ), 
         '#options' => array( 'sandbox' => ( 'Sandbox - use for testing' ),
         'live' => ( 'Live - use for processing real transactions' ), ), '#default_value' => isset( $settings['server'] ) ? $settings['server'] : 'sandbox', );
 
