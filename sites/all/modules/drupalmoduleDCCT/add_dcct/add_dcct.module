@@ -51,7 +51,7 @@ $form['some_text'] = array(
     '#title' => 'What is the size of the product?',
     '#size' => 10,
     '#maxlength' => 3,
-    '#required' => FALSE, //make this field required 
+    '#required' => TRUE, //make this field required 
   );
 
 $form['upload'] = array(
@@ -106,7 +106,7 @@ if ($file = file_move($file, 'public://')) {
       $product->title = $form_state['values']['title'];
       $product->language = LANGUAGE_NONE;
       $product->field_image1[LANGUAGE_NONE][0] = (array)$file;
-      $product->field_size[LANGUAGE_NONE][0] =  $form_state['values']['size'];
+      $product->field_size[LANGUAGE_NONE][0]['value'] =  $form_state['values']['size'];
       $product->uid = 1;
       $product->commerce_price[LANGUAGE_NONE][0] = array(
         'amount' => (int)$form_state['values']['price'] * 100, // $10

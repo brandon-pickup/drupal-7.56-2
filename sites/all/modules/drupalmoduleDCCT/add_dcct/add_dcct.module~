@@ -129,6 +129,9 @@ $newDisplay = TRUE;
 foreach ($nodes as $node) {
    if ($node->title == $product->title){
       $newDisplay = FALSE;
+      $node->field_product[LANGUAGE_NONE][]['product_id'] = $product->product_id;
+      node_save($node);
+      break;
 }
   }
 if (TRUE == $newDisplay){
@@ -138,8 +141,7 @@ if (TRUE == $newDisplay){
 
     $node->title    = $product->title;
     $node->language = LANGUAGE_NONE;
-
-    $node->field_product['und'][0]['product_id'] = $product->product_id;
+    $node->field_product[LANGUAGE_NONE][0]['product_id'] = $product->product_id;
     node_save($node);
     }
 }
